@@ -6,10 +6,14 @@
 # SPRINT DEVOPS TOOLS & CLOUD COMPUTING - FIAP
 
 ## Integrantes do Grupo:
-* **Nome**: Maicon Douglas | **RM**: 561279
+* **Maicon Douglas** | **RM**: 561279
+* **Gabriel (Gabs)** | **RM**: 561551
+* **Charlles** | **RM**: 566482
+* **Iago D.** | **RM**: 565708
 
 ## Links Obrigatórios:
-* **Repositório no GitHub**: https://github.com/MCGI-PW/API-Clyvo-M_Vet
+* **Repositório no GitHub (DevOps)**: https://github.com/MCGI-PW/DevOps-Clyvo-M_Vet
+* **Repositório no GitHub (API Java)**: https://github.com/MCGI-PW/API-Clyvo-M_Vet
 * **Vídeo Demonstrativo no YouTube**: https://youtu.be/548lg3zc7Mw
 
 ---

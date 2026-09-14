@@ -243,7 +243,13 @@ SELECT * FROM consulta WHERE id_consulta = 'A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3';
 
 ## 8. Dados da Entrega (Integrantes e Links)
 
-* **Nome do Aluno**: Maicon Douglas
-* **RM**: 561279
-* **Repositório GitHub**: [https://github.com/MCGI-PW/API-Clyvo-M_Vet](https://github.com/MCGI-PW/API-Clyvo-M_Vet)
+### 👥 Integrantes do Grupo:
+* **Maicon Douglas** - RM561279
+* **Gabriel (Gabs)** - RM561551
+* **Charlles** - RM566482
+* **Iago D.** - RM565708
+
+### 🔗 Links Oficiais:
+* **Repositório GitHub (DevOps)**: [https://github.com/MCGI-PW/DevOps-Clyvo-M_Vet](https://github.com/MCGI-PW/DevOps-Clyvo-M_Vet)
+* **Repositório GitHub (API Java)**: [https://github.com/MCGI-PW/API-Clyvo-M_Vet](https://github.com/MCGI-PW/API-Clyvo-M_Vet)
 * **Link do Vídeo no YouTube**: [https://youtu.be/548lg3zc7Mw](https://youtu.be/548lg3zc7Mw)
