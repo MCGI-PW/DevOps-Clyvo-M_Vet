@@ -1,0 +1,66 @@
+version: '3.8'
+
+# ============================================================================
+# DOCKER COMPOSE - CLYVO VET PLATFORM
+# Opção 1: Solução Containerizada Completa (Aplicação + Banco de Dados)
+# Requisitos: App Non-Root, Rede Isolada, Volumes Persistentes
+# ============================================================================
+
+services:
+  # --------------------------------------------------------------------------
+  # 1. SERVIÇO: BANCO DE DADOS (PostgreSQL em Container na Nuvem)
+  # --------------------------------------------------------------------------
+  clyvovet-db:
+    image: postgres:16-alpine
+    container_name: clyvovet-db
+    restart: always
+    environment:
+      POSTGRES_DB: clyvovet
+      POSTGRES_USER: ${DB_USER:-clyvouser}
+      POSTGRES_PASSWORD: ${DB_PASS:-ClyvoSecPass2026!}
+    ports:
+      - "5432:5432"
+    volumes:
+      - clyvovet_db_data:/var/lib/postgresql/data
+      - ./script_bd.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - clyvo-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-clyvouser} -d clyvovet"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --------------------------------------------------------------------------
+  # 2. SERVIÇO: APLICAÇÃO SPRING BOOT 3 (Java 21 LTS - Non-Root)
+  # --------------------------------------------------------------------------
+  clyvovet-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: clyvovet-api:latest
+    container_name: clyvovet-app
+    restart: always
+    depends_on:
+      clyvovet-db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://clyvovet-db:5432/clyvovet
+      DB_USER: ${DB_USER:-clyvouser}
+      DB_PASS: ${DB_PASS:-ClyvoSecPass2026!}
+      JWT_SECRET: ${JWT_SECRET:-clyvo_secret_key_ultra_secure_minimum_32_chars_2026_devops}
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    networks:
+      - clyvo-network
+
+volumes:
+  clyvovet_db_data:
+    name: clyvovet_db_data
+
+networks:
+  clyvo-network:
+    name: clyvo-network
+    driver: bridge
