@@ -58,6 +58,9 @@ az acr create \
 ACR_LOGIN_SERVER=$(az acr show --name "$ACR_NAME" --query loginServer --output tsv)
 ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" --output tsv)
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 # ----------------------------------------------------------------------------
 # 4. BUILD DA IMAGEM DOCKER (NON-ROOT) DIRETAMENTE NO ACR
 # O build roda na Azure (linux/amd64), evitando incompatibilidade com Macs ARM
@@ -67,8 +70,8 @@ az acr build \
   --registry "$ACR_NAME" \
   --image "$IMAGE_NAME:$IMAGE_TAG" \
   --platform linux/amd64 \
-  --file ../Dockerfile \
-  ..
+  --file "$REPO_ROOT/Dockerfile" \
+  "$REPO_ROOT"
 
 # ----------------------------------------------------------------------------
 # 5. DEPLOY DA APLICAÇÃO SPRING BOOT NO AZURE CONTAINER INSTANCES (ACI)
