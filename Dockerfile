@@ -15,7 +15,8 @@ WORKDIR /build
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
 # Clona o repositório público oficial da aplicação Java
-RUN git clone https://github.com/MCGI-PW/API-Clyvo-M_Vet.git .
+ARG GIT_REF=main
+RUN git clone --depth 1 --branch ${GIT_REF} https://github.com/MCGI-PW/API-Clyvo-M_Vet.git .
 
 # Concede permissão de execução ao wrapper e compila o pacote JAR
 RUN chmod +x mvnw && ./mvnw clean package -DskipTests -B
