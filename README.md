@@ -37,41 +37,38 @@ A aplicação possui uma arquitetura híbrida com **Camada Web Server-Side (Thym
 
 ## 3. Desenho da Arquitetura Cloud (DevOps Tools)
 
-A arquitetura adota a **Opção 1 (Solução 100% Containerizada com ACR + ACI)**:
+A arquitetura adota a **Opção 1 (aplicação containerizada com ACR + ACI)**, conectada ao **Oracle Database da FIAP**:
 
 ```
-                                  [ DESENVOLVEDOR / CI/CD ]
-                                              │
-                                              ▼ (git push / az acr build)
-                      ┌───────────────────────────────────────────────────┐
-                      │          AZURE CONTAINER REGISTRY (ACR)           │
-                      │  Imagem: clyvovet-api:v1.0.0 (Java 21 Non-Root)  │
-                      └────────────────────────┬──────────────────────────┘
-                                               │
-                                               │ (Pull de imagem segura)
-                                               ▼
-     [ CLIENTE EXTERNO ]        ┌────────────────────────────────────────┐
-   (Navegador Web / Mobile) ───►│    AZURE CONTAINER INSTANCES (ACI)     │
-        HTTP:8080               │                                        │
-                                │   ┌────────────────────────────────┐   │
-                                │   │ Container 1: App Spring Boot   │   │
-                                │   │ (Java 21 JRE, Non-Root UID 10001│   │
-                                │   └───────────────┬────────────────┘   │
-                                │                   │                    │
-                                │                   │ JDBC:5432          │
-                                │                   ▼                    │
-                                │   ┌────────────────────────────────┐   │
-                                │   │ Container 2: Banco de Dados    │   │
-                                │   │ (PostgreSQL 16 Cloud / Vol)    │   │
-                                │   └────────────────────────────────┘   │
-                                └────────────────────────────────────────┘
+                         [ DESENVOLVEDOR ]
+                                │
+                                ▼  az acr build (Dockerfile multi-stage)
+            ┌───────────────────────────────────────────────────┐
+            │          AZURE CONTAINER REGISTRY (ACR)           │
+            │   Imagem: clyvovet-api:v2.0.0 (Java 21 Non-Root)  │
+            └─────────────────────────┬─────────────────────────┘
+                                      │ pull da imagem
+                                      ▼
+  [ CLIENTE EXTERNO ]     ┌────────────────────────────────────────┐
+ (Navegador Web / Mobile)─►│   AZURE CONTAINER INSTANCES (ACI)     │
+       HTTP:8080          │   App Spring Boot (Java 21 JRE)        │
+                          │   Usuário Non-Root UID 10001           │
+                          │   Perfis: prod,demo                    │
+                          └───────────────────┬────────────────────┘
+                                              │ JDBC thin :1521
+                                              ▼
+                          ┌────────────────────────────────────────┐
+                          │   ORACLE DATABASE (oracle.fiap.com.br) │
+                          │   Schema criado pelo Flyway (V1..V6)   │
+                          └────────────────────────────────────────┘
 ```
 
 ### Explicação do Funcionamento:
-1. **Segurança do Container (Requisito 8.2)**: A imagem do App roda com usuário não-privilegiado (`appuser`, UID 10001), eliminando riscos de container escape e escalada de privilégios.
-2. **Registro de Imagens (ACR)**: Repositório privado na Azure que armazena a imagem Docker construída a partir do `Dockerfile` multi-stage.
-3. **Execução Serverless (ACI)**: O Azure Container Instances executa tanto o container da aplicação quanto o container do banco de dados relacional, expondo portas e FQDNs públicos dedicados.
-4. **Comunicação Privada**: A aplicação comunica-se com a instância do banco através da porta 5432 utilizando credenciais injetadas de forma segura via parâmetros da Azure CLI (`--secure-environment-variables`).
+1. **Segurança do Container (Requisito 8.2)**: A imagem roda com usuário não privilegiado (`appuser`, UID 10001), reduzindo o risco de escalada de privilégios.
+2. **Registro de Imagens (ACR)**: Repositório privado na Azure. O build é feito na própria Azure (`az acr build`, `linux/amd64`) a partir do `Dockerfile` multi-stage, que clona a branch `main` da API.
+3. **Execução Serverless (ACI)**: O Azure Container Instances executa o container da aplicação com IP público e FQDN dedicado.
+4. **Banco de Dados**: A aplicação conecta-se ao Oracle da FIAP pela porta 1521. Ao subir, o **Flyway** cria ou atualiza o schema (migrations `V1..V6`) e o perfil `demo` carrega os dados de demonstração.
+5. **Segredos**: `DB_URL`, `DB_USER`, `DB_PASS`, `JWT_SECRET` e `DEMO_PASSWORD` são lidos de variáveis de ambiente e enviados ao ACI como `--secure-environment-variables`. Nenhuma credencial fica no código.
 
 ---
 
@@ -83,7 +80,9 @@ Conforme os **Requisitos 3.3 e 3.4**, a solução utiliza duas tabelas que repre
 2. **`PRONTUARIO` (Tabela CORE 2)**: Registra o histórico clínico, observações médicas, hipótese diagnóstica e prescrições do médico veterinário, associada via chave estrangeira 1:1 à `CONSULTA`.
 
 > 📄 **DDL Completo**: O script com toda a estrutura, PKs, FKs, constraints e comentários está salvo no arquivo obrigatório:  
-> 👉 [`Devops/script_bd.sql`](./script_bd.sql)
+> 👉 [`script_bd.sql`](./script_bd.sql)
+>
+> ℹ️ O `script_bd.sql` é o DDL comentado das tabelas CORE usado na demonstração do CRUD (seção 6). O schema completo da aplicação (contas, perfis, autorizações LGPD, notificações etc.) é criado automaticamente pelo **Flyway** a partir das migrations [`V1..V6`](https://github.com/MCGI-PW/API-Clyvo-M_Vet/tree/main/src/main/resources/db/migration) do repositório da API, com o DER em [`docs/DER.md`](https://github.com/MCGI-PW/API-Clyvo-M_Vet/blob/main/docs/DER.md).
 
 ---
 
@@ -100,18 +99,31 @@ az login
 Disponibilizamos um script completo que cria o Resource Group, o ACR, realiza o build/push da imagem e inicia os containers no ACI:
 
 ```bash
-cd Devops/scripts
+cd scripts
 chmod +x deploy_acr_aci.sh
+./deploy_acr_aci.sh
+```
+
+> ⚠️ O `Dockerfile` clona a branch `main` do repositório da API. **Faça o push das alterações da API antes do deploy.**
+
+As credenciais são obrigatórias e lidas do ambiente (o script para com erro se faltar alguma):
+
+```bash
+export DB_USER="rmXXXXXX"                      # usuário Oracle FIAP
+export DB_PASS="********"                      # senha Oracle FIAP
+export JWT_SECRET="$(openssl rand -base64 48)"
+export DEMO_PASSWORD="********"                # senha das contas de demonstração
 ./deploy_acr_aci.sh
 ```
 
 ### Ou execute manualmente comando por comando:
 
 ```bash
-# 1. Definir variáveis
+# 1. Definir variáveis (credenciais já exportadas no passo anterior)
 RG="rg-clyvovet-fiap"
 LOC="eastus"
 ACR="acrclyvovet$RANDOM"
+DB_URL="jdbc:oracle:thin:@oracle.fiap.com.br:1521:ORCL"
 
 # 2. Criar Resource Group
 az group create --name $RG --location $LOC
@@ -121,48 +133,44 @@ az acr create --resource-group $RG --name $ACR --sku Basic --admin-enabled true
 ACR_LOGIN=$(az acr show --name $ACR --query loginServer -o tsv)
 ACR_PWD=$(az acr credential show --name $ACR --query "passwords[0].value" -o tsv)
 
-# 4. Build e Push da imagem Non-Root para o ACR
-az acr login --name $ACR
-docker build -t clyvovet-api:v1.0.0 -f Devops/Dockerfile .
-docker tag clyvovet-api:v1.0.0 $ACR_LOGIN/clyvovet-api:v1.0.0
-docker push $ACR_LOGIN/clyvovet-api:v1.0.0
+# 4. Build da imagem Non-Root diretamente no ACR (na raiz deste repositório)
+az acr build --registry $ACR --image clyvovet-api:v2.0.0 --platform linux/amd64 --file Dockerfile .
 
-# 5. Criar Container do Banco de Dados no ACI
-az container create \
-  --resource-group $RG \
-  --name aci-clyvovet-db \
-  --image postgres:16-alpine \
-  --cpu 1 --memory 1.5 --ports 5432 \
-  --dns-name-label clyvodb-$RANDOM \
-  --environment-variables POSTGRES_DB=clyvovet POSTGRES_USER=clyvouser \
-  --secure-environment-variables POSTGRES_PASSWORD=ClyvoSecPass2026!
-
-DB_FQDN=$(az container show --resource-group $RG --name aci-clyvovet-db --query "ipAddress.fqdn" -o tsv)
-
-# 6. Criar Container da Aplicação no ACI
+# 5. Criar o container da aplicação no ACI
 az container create \
   --resource-group $RG \
   --name aci-clyvovet-app \
-  --image $ACR_LOGIN/clyvovet-api:v1.0.0 \
+  --image $ACR_LOGIN/clyvovet-api:v2.0.0 \
   --registry-login-server $ACR_LOGIN \
   --registry-username $ACR \
   --registry-password $ACR_PWD \
-  --cpu 1 --memory 2.0 --ports 8080 \
-  --dns-name-label clyvoapp-$RANDOM \
-  --environment-variables \
-      SPRING_PROFILES_ACTIVE=prod \
-      DB_URL="jdbc:postgresql://$DB_FQDN:5432/clyvovet" \
-      DB_USER="clyvouser" \
+  --os-type Linux --cpu 1 --memory 2.0 --ports 8080 \
+  --ip-address Public \
+  --dns-name-label clyvovet-app-$RANDOM \
+  --environment-variables SPRING_PROFILES_ACTIVE="prod,demo" SERVER_PORT="8080" \
   --secure-environment-variables \
-      DB_PASS="ClyvoSecPass2026!" \
-      JWT_SECRET="clyvo_secret_key_ultra_secure_minimum_32_chars_2026_devops"
+      DB_URL="$DB_URL" DB_USER="$DB_USER" DB_PASS="$DB_PASS" \
+      JWT_SECRET="$JWT_SECRET" DEMO_PASSWORD="$DEMO_PASSWORD"
+
+# 6. Obter a URL pública
+az container show --resource-group $RG --name aci-clyvovet-app --query "ipAddress.fqdn" -o tsv
+# Aplicação: http://<fqdn>:8080/   ·   Swagger: http://<fqdn>:8080/swagger-ui.html
+# Logs:      az container logs -g $RG -n aci-clyvovet-app
+```
+
+### Execução local com Docker Compose (Oracle Free em container)
+
+```bash
+export DB_PASS="uma-senha-local" JWT_SECRET="$(openssl rand -base64 48)" DEMO_PASSWORD="senha123"
+docker compose up --build
+# http://localhost:8080  (a primeira subida do Oracle leva alguns minutos)
 ```
 
 ---
 
 ## 6. Roteiro de Demonstração do CRUD no Banco de Dados (Vídeo)
 
-Para a gravação do vídeo (Requisito 9.2 e 9.3), execute os comandos abaixo diretamente no cliente de banco de dados (DBeaver, DataGrip, psql ou Azure Query Editor) para evidenciar **SELECT antes e depois de cada operação**:
+Para a gravação do vídeo (Requisito 9.2 e 9.3), execute os comandos abaixo diretamente no cliente de banco de dados (SQL Developer, DBeaver ou DataGrip conectado ao Oracle da FIAP) para evidenciar **SELECT antes e depois de cada operação**:
 
 ### Operação 1: READ (Consulta Inicial)
 Exibe os registros existentes relacionando as duas tabelas CORE (`CONSULTA` e `PRONTUARIO`):
@@ -230,11 +238,11 @@ SELECT * FROM consulta WHERE id_consulta = 'A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3';
 | **Sem benefício para o negócio (-10 pts)** | 🛡️ Protegido | Seção 2 deste README. |
 | **Sem orientações de deploy/teste (-30 pts)** | 🛡️ Protegido | Seções 5 e 6 deste README. |
 | **Sem evidência do CRUD no banco (-30 pts)** | 🛡️ Protegido | Queries detalhadas com SELECTs antes e depois no script e README. |
-| **Sem DDL das tabelas com comentários (-10 pts)** | 🛡️ Protegido | Arquivo [`Devops/script_bd.sql`](./script_bd.sql) com PKs, FKs e COMMENTs. |
+| **Sem DDL das tabelas com comentários (-10 pts)** | 🛡️ Protegido | Arquivo [`script_bd.sql`](./script_bd.sql) com PKs, FKs e COMMENTs. |
 | **Não manipular pelo menos 2 linhas significativas (-20 pts)** | 🛡️ Protegido | Carga inicial com Thor e Mia contendo consultas e prontuários reais. |
 | **Utilizar apenas 1 tabela no CRUD (-20 pts)** | 🛡️ Protegido | CRUD manipulando `CONSULTA` e `PRONTUARIO` conjuntamente. |
 | **Tabelas que não são do CORE (-30 pts)** | 🛡️ Protegido | Uso direto do coração da aplicação veterinária. |
-| **Misturar opções de entrega (-40 pts)** | 🛡️ Protegido | Solução 100% containerizada com ACR + ACI (sem mistura). |
+| **Misturar opções de entrega (-40 pts)** | 🛡️ Protegido | Solução 100% containerizada com ACR + ACI (o script da opção App Service foi removido). |
 | **Dados sensíveis expostos no código (-20 pts)** | 🛡️ Protegido | Credenciais e segredos injetados exclusivamente por variáveis de ambiente. |
 | **Container rodando como root/admin (-10 pts)** | 🛡️ Protegido | `Dockerfile` com usuário `appuser` (UID 10001). |
 | **Recursos não criados via Azure CLI (-30 pts)** | 🛡️ Protegido | Scripts 100% baseados em comandos `az`. |
