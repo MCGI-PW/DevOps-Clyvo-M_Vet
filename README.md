@@ -121,7 +121,7 @@ export DEMO_PASSWORD="********"                # senha das contas de demonstraç
 ```bash
 # 1. Definir variáveis (credenciais já exportadas no passo anterior)
 RG="rg-clyvovet-fiap"
-LOC="eastus"
+LOC="brazilsouth"   # regiões permitidas na assinatura FIAP: brazilsouth, southcentralus, mexicocentral, chilecentral, southafricanorth
 ACR="acrclyvovet$RANDOM"
 DB_URL="jdbc:oracle:thin:@oracle.fiap.com.br:1521:ORCL"
 
