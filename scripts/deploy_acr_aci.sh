@@ -25,7 +25,7 @@ set -euo pipefail
 
 DB_URL="${DB_URL:-jdbc:oracle:thin:@oracle.fiap.com.br:1521:ORCL}"
 RESOURCE_GROUP="${RESOURCE_GROUP:-rg-clyvovet-fiap}"
-LOCATION="${LOCATION:-eastus}"
+LOCATION="${LOCATION:-brazilsouth}"
 ACR_NAME="${ACR_NAME:-acrclyvovet${RANDOM}}"
 ACI_APP_NAME="aci-clyvovet-app"
 IMAGE_NAME="clyvovet-api"
