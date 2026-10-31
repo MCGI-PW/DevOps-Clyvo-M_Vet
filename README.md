@@ -158,6 +158,24 @@ az container show --resource-group $RG --name aci-clyvovet-app --query "ipAddres
 # Logs:      az container logs -g $RG -n aci-clyvovet-app
 ```
 
+### HTTPS e login social (OAuth2 Google/GitHub)
+
+O Google só aceita destino de login OAuth2 em **HTTPS** (exceto `localhost`). Por isso o container group ganha um segundo container, o **Caddy**, que fica na frente da aplicação. Ele emite o certificado do Let's Encrypt para o FQDN do ACI e redireciona HTTP para HTTPS. A aplicação fica só na porta interna 8080, e o Spring monta os endereços em `https://` a partir dos cabeçalhos `X-Forwarded-*` (`server.forward-headers-strategy=framework`).
+
+```text
+Internet ──443/80──► caddy (Let's Encrypt) ──localhost:8080──► app (Spring Boot) ──1521──► Oracle FIAP
+```
+
+```bash
+./scripts/deploy_https_oauth.sh   # pede as senhas e as chaves OAuth sem mostrá-las na tela
+# Aplicação: https://<fqdn>/   ·   Swagger: https://<fqdn>/swagger-ui.html
+# Logs:      az container logs -g $RG -n aci-clyvovet-app --container-name app   (ou caddy)
+```
+
+URLs de retorno a cadastrar nos provedores:
+* Google: `https://<fqdn>/login/oauth2/code/google` (e `http://localhost:8080/login/oauth2/code/google` para testar localmente)
+* GitHub: `https://<fqdn>/login/oauth2/code/github`
+
 ### Execução local com Docker Compose (Oracle Free em container)
 
 ```bash
