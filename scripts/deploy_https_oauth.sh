@@ -33,12 +33,27 @@ perguntar DB_USER "Usuário do Oracle FIAP, com o rm [rm561279]" 0
 DB_USER="${DB_USER:-rm561279}"
 case "$DB_USER" in rm*|RM*) ;; *) DB_USER="rm${DB_USER}";; esac
 perguntar DB_PASS "Senha do Oracle FIAP" 1
+perguntar DB_PASS_CONFIRMACAO "Repita a senha do Oracle FIAP" 1
+# Senha errada derruba o container em loop, e cada reinício é uma tentativa de login que pode bloquear a conta no Oracle
+if [ -z "$DB_PASS" ] || [ "$DB_PASS" != "$DB_PASS_CONFIRMACAO" ]; then
+  echo ">> As senhas do Oracle não conferem. Nada foi alterado no Azure." >&2
+  exit 1
+fi
 perguntar DEMO_PASSWORD "Senha das contas demo [senha123]" 1
 DEMO_PASSWORD="${DEMO_PASSWORD:-senha123}"
 perguntar GOOGLE_CLIENT_ID "Google Client ID (Enter para pular)" 0
 perguntar GOOGLE_CLIENT_SECRET "Google Client Secret (Enter para pular)" 1
 perguntar GITHUB_CLIENT_ID "GitHub Client ID (Enter para pular)" 0
 perguntar GITHUB_CLIENT_SECRET "GitHub Client Secret (Enter para pular)" 1
+
+for provedor in GOOGLE GITHUB; do
+  id_var="${provedor}_CLIENT_ID"; secret_var="${provedor}_CLIENT_SECRET"
+  if [ -z "${!id_var}" ] || [ -z "${!secret_var}" ]; then
+    echo ">> Atenção: sem ${provedor}_CLIENT_ID e ${provedor}_CLIENT_SECRET, o botão de login desse provedor não aparece."
+  fi
+done
+read -rp ">> Continuar com o deploy? [s/N] " continuar
+[ "$continuar" = "s" ] || [ "$continuar" = "S" ] || { echo ">> Cancelado. Nada foi alterado no Azure."; exit 1; }
 
 ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" --output tsv)
 JWT_SECRET=$(openssl rand -base64 48)
