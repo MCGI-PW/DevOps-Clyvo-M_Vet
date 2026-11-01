@@ -29,7 +29,7 @@ LOCATION="${LOCATION:-brazilsouth}"
 ACR_NAME="${ACR_NAME:-acrclyvovet${RANDOM}}"
 ACI_APP_NAME="aci-clyvovet-app"
 IMAGE_NAME="clyvovet-api"
-IMAGE_TAG="${IMAGE_TAG:-v2.0.0}"
+IMAGE_TAG="${IMAGE_TAG:-v2.1.0}"
 DNS_NAME_APP="${DNS_NAME_APP:-clyvovet-app-${RANDOM}}"
 
 echo "========================================================================"

@@ -45,7 +45,7 @@ A arquitetura adota a **Opção 1 (aplicação containerizada com ACR + ACI)**, 
                                 ▼  az acr build (Dockerfile multi-stage)
             ┌───────────────────────────────────────────────────┐
             │          AZURE CONTAINER REGISTRY (ACR)           │
-            │   Imagem: clyvovet-api:v2.0.0 (Java 21 Non-Root)  │
+            │   Imagem: clyvovet-api:v2.1.0 (Java 21 Non-Root)  │
             └─────────────────────────┬─────────────────────────┘
                                       │ pull da imagem
                                       ▼
@@ -134,13 +134,13 @@ ACR_LOGIN=$(az acr show --name $ACR --query loginServer -o tsv)
 ACR_PWD=$(az acr credential show --name $ACR --query "passwords[0].value" -o tsv)
 
 # 4. Build da imagem Non-Root diretamente no ACR (na raiz deste repositório)
-az acr build --registry $ACR --image clyvovet-api:v2.0.0 --platform linux/amd64 --file Dockerfile .
+az acr build --registry $ACR --image clyvovet-api:v2.1.0 --platform linux/amd64 --file Dockerfile .
 
 # 5. Criar o container da aplicação no ACI
 az container create \
   --resource-group $RG \
   --name aci-clyvovet-app \
-  --image $ACR_LOGIN/clyvovet-api:v2.0.0 \
+  --image $ACR_LOGIN/clyvovet-api:v2.1.0 \
   --registry-login-server $ACR_LOGIN \
   --registry-username $ACR \
   --registry-password $ACR_PWD \
