@@ -41,10 +41,16 @@ if [ -z "$DB_PASS" ] || [ "$DB_PASS" != "$DB_PASS_CONFIRMACAO" ]; then
 fi
 perguntar DEMO_PASSWORD "Senha das contas demo [senha123]" 1
 DEMO_PASSWORD="${DEMO_PASSWORD:-senha123}"
-perguntar GOOGLE_CLIENT_ID "Google Client ID (Enter para pular)" 0
-perguntar GOOGLE_CLIENT_SECRET "Google Client Secret (Enter para pular)" 1
-perguntar GITHUB_CLIENT_ID "GitHub Client ID (Enter para pular)" 0
-perguntar GITHUB_CLIENT_SECRET "GitHub Client Secret (Enter para pular)" 1
+# Client IDs são públicos (aparecem na URL de login); só os segredos precisam ser digitados
+GOOGLE_ID_PADRAO="458257025008-6nh0adros9fkihvon1f67q3msi0ekgoj.apps.googleusercontent.com"
+GITHUB_ID_PADRAO="Ov23liX3g8dkWqvR00Qr"
+perguntar GOOGLE_CLIENT_ID "Google Client ID [Enter usa o do projeto]" 0
+GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-$GOOGLE_ID_PADRAO}"
+perguntar GOOGLE_CLIENT_SECRET "Google Client Secret (cole e tecle Enter; não aparece na tela)" 1
+perguntar GITHUB_CLIENT_ID "GitHub Client ID [Enter usa o do projeto]" 0
+GITHUB_CLIENT_ID="${GITHUB_CLIENT_ID:-$GITHUB_ID_PADRAO}"
+perguntar GITHUB_CLIENT_SECRET "GitHub Client Secret (cole e tecle Enter; não aparece na tela)" 1
+echo ">> Recebido: Google secret com ${#GOOGLE_CLIENT_SECRET} caracteres, GitHub secret com ${#GITHUB_CLIENT_SECRET} caracteres." 
 
 for provedor in GOOGLE GITHUB; do
   id_var="${provedor}_CLIENT_ID"; secret_var="${provedor}_CLIENT_SECRET"
