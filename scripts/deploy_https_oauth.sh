@@ -22,7 +22,7 @@ ACI_APP_NAME="${ACI_APP_NAME:-aci-clyvovet-app}"
 DNS_NAME_APP="${DNS_NAME_APP:-clyvovet-app-16666}"
 IMAGE="${ACR_NAME}.azurecr.io/clyvovet-api:${IMAGE_TAG:-v2.1.0}"
 CADDY_IMAGE="${ACR_NAME}.azurecr.io/caddy:2.8.4"
-SCRIBE_IMAGE="${ACR_NAME}.azurecr.io/clyvoscribe:${SCRIBE_TAG:-v1.0.0}"
+SCRIBE_IMAGE="${ACR_NAME}.azurecr.io/clyvoscribe:${SCRIBE_TAG:-v1.1.0}"
 FQDN="${DNS_NAME_APP}.${LOCATION}.azurecontainer.io"
 DB_URL="${DB_URL:-jdbc:oracle:thin:@oracle.fiap.com.br:1521:ORCL}"
 
