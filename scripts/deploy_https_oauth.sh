@@ -6,7 +6,9 @@
 #   - clyvoscribe : o serviço de IA (repositório IoT-Clyvo-Vet_M), só na porta interna 8000;
 #                   a API chama em http://localhost:8000 (mesmo grupo, mesma rede)
 #   - caddy       : proxy reverso que emite o certificado HTTPS (Let's Encrypt) para o
-#                   FQDN do ACI e redireciona HTTP -> HTTPS
+#                   FQDN do ACI e redireciona HTTP -> HTTPS. O certificado fica num
+#                   compartilhamento do Azure Files (/data), para sobreviver a reinícios:
+#                   o Let's Encrypt emite no máximo 5 certificados por semana para o mesmo endereço
 # O Google só aceita destino de login OAuth2 em HTTPS (exceto localhost).
 #
 # Uso (as credenciais são pedidas sem aparecer na tela):
@@ -24,6 +26,8 @@ IMAGE="${ACR_NAME}.azurecr.io/clyvovet-api:${IMAGE_TAG:-v2.1.0}"
 CADDY_IMAGE="${ACR_NAME}.azurecr.io/caddy:2.8.4"
 SCRIBE_IMAGE="${ACR_NAME}.azurecr.io/clyvoscribe:${SCRIBE_TAG:-v1.1.0}"
 FQDN="${DNS_NAME_APP}.${LOCATION}.azurecontainer.io"
+STORAGE_ACCOUNT="${STORAGE_ACCOUNT:-stclyvovet23613}"
+CADDY_SHARE="caddy-data"
 DB_URL="${DB_URL:-jdbc:oracle:thin:@oracle.fiap.com.br:1521:ORCL}"
 
 perguntar() { # nome, texto, oculto(0/1)
@@ -69,6 +73,16 @@ read -rp ">> Continuar com o deploy? [s/N] " continuar
 ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" --output tsv)
 JWT_SECRET=$(openssl rand -base64 48)
 
+# Armazenamento persistente do certificado HTTPS (criado só na primeira vez)
+if ! az storage account show --name "$STORAGE_ACCOUNT" --resource-group "$RESOURCE_GROUP" --output none 2>/dev/null; then
+  echo ">> Criando a conta de armazenamento ${STORAGE_ACCOUNT} para o certificado HTTPS..."
+  az storage account create --name "$STORAGE_ACCOUNT" --resource-group "$RESOURCE_GROUP" --location "$LOCATION" \
+    --sku Standard_LRS --kind StorageV2 --min-tls-version TLS1_2 --output none
+fi
+az storage share-rm create --storage-account "$STORAGE_ACCOUNT" --resource-group "$RESOURCE_GROUP" \
+  --name "$CADDY_SHARE" --quota 1 --output none 2>/dev/null || true
+STORAGE_KEY=$(az storage account keys list --account-name "$STORAGE_ACCOUNT" --resource-group "$RESOURCE_GROUP" --query "[0].value" --output tsv)
+
 # O YAML leva segredos: fica num arquivo temporário legível só pelo usuário e é apagado no fim
 YAML=$(mktemp)
 chmod 600 "$YAML"
@@ -94,6 +108,12 @@ properties:
     - server: ${ACR_NAME}.azurecr.io
       username: ${ACR_NAME}
       password: '${ACR_PASSWORD}'
+  volumes:
+    - name: caddy-data
+      azureFile:
+        shareName: ${CADDY_SHARE}
+        storageAccountName: ${STORAGE_ACCOUNT}
+        storageAccountKey: '${STORAGE_KEY}'
   ipAddress:
     type: Public
     dnsNameLabel: ${DNS_NAME_APP}
@@ -141,6 +161,7 @@ cat <<EOF
         command: [caddy, reverse-proxy, --from, '${FQDN}', --to, 'localhost:8080']
         resources: {requests: {cpu: 0.5, memoryInGB: 0.5}}
         ports: [{port: 80}, {port: 443}]
+        volumeMounts: [{name: caddy-data, mountPath: /data}]
 EOF
 } > "$YAML"
 

@@ -162,14 +162,22 @@ az container show --resource-group $RG --name aci-clyvovet-app --query "ipAddres
 
 O Google só aceita destino de login OAuth2 em **HTTPS** (exceto `localhost`). Por isso o container group ganha um segundo container, o **Caddy**, que fica na frente da aplicação. Ele emite o certificado do Let's Encrypt para o FQDN do ACI e redireciona HTTP para HTTPS. A aplicação fica só na porta interna 8080, e o Spring monta os endereços em `https://` a partir dos cabeçalhos `X-Forwarded-*` (`server.forward-headers-strategy=framework`).
 
+O grupo tem também o **ClyvoScribe AI** (serviço de IA, repositório [IoT-Clyvo-Vet_M](https://github.com/MCGI-PW/IoT-Clyvo-Vet_M)), que a aplicação chama em `localhost:8000` para resumir a teleconsulta (`CLYVOSCRIBE_URL`). Ele não fica exposto na internet.
+
 ```text
 Internet ──443/80──► caddy (Let's Encrypt) ──localhost:8080──► app (Spring Boot) ──1521──► Oracle FIAP
+                       │                                         │
+                  /data no Azure Files                     localhost:8000
+                  (certificado HTTPS)                            ▼
+                                                     clyvoscribe (Python, IA)
 ```
+
+**Certificado persistente:** o Let's Encrypt emite no máximo **5 certificados por semana** para o mesmo endereço. Sem disco, cada recriação do grupo pedia um certificado novo e esgotava o limite (erro `HTTP 429 rateLimited` no log do Caddy). Por isso o script cria a conta de armazenamento `stclyvovet23613` com o compartilhamento `caddy-data` e monta em `/data` no Caddy: o certificado sobrevive a reinícios e a novos deploys.
 
 ```bash
 ./scripts/deploy_https_oauth.sh   # pede as senhas e as chaves OAuth sem mostrá-las na tela
 # Aplicação: https://<fqdn>/   ·   Swagger: https://<fqdn>/swagger-ui.html
-# Logs:      az container logs -g $RG -n aci-clyvovet-app --container-name app   (ou caddy)
+# Logs:      az container logs -g $RG -n aci-clyvovet-app --container-name app   (ou caddy, ou clyvoscribe)
 ```
 
 URLs de retorno a cadastrar nos provedores:
