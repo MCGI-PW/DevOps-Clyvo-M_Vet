@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # ============================================================================
-# HTTPS + LOGIN SOCIAL (OAUTH2) NO AZURE CONTAINER INSTANCES
-# Recria o container group com dois containers:
-#   - app   : a API Clyvo Vet (imagem já publicada no ACR), só na porta interna 8080
-#   - caddy : proxy reverso que emite o certificado HTTPS (Let's Encrypt) para o
-#             FQDN do ACI e redireciona HTTP -> HTTPS
+# HTTPS + LOGIN SOCIAL (OAUTH2) + IA NO AZURE CONTAINER INSTANCES
+# Recria o container group com três containers:
+#   - app         : a API Clyvo Vet (imagem já publicada no ACR), só na porta interna 8080
+#   - clyvoscribe : o serviço de IA (repositório IoT-Clyvo-Vet_M), só na porta interna 8000;
+#                   a API chama em http://localhost:8000 (mesmo grupo, mesma rede)
+#   - caddy       : proxy reverso que emite o certificado HTTPS (Let's Encrypt) para o
+#                   FQDN do ACI e redireciona HTTP -> HTTPS
 # O Google só aceita destino de login OAuth2 em HTTPS (exceto localhost).
 #
 # Uso (as credenciais são pedidas sem aparecer na tela):
@@ -20,6 +22,7 @@ ACI_APP_NAME="${ACI_APP_NAME:-aci-clyvovet-app}"
 DNS_NAME_APP="${DNS_NAME_APP:-clyvovet-app-16666}"
 IMAGE="${ACR_NAME}.azurecr.io/clyvovet-api:${IMAGE_TAG:-v2.1.0}"
 CADDY_IMAGE="${ACR_NAME}.azurecr.io/caddy:2.8.4"
+SCRIBE_IMAGE="${ACR_NAME}.azurecr.io/clyvoscribe:${SCRIBE_TAG:-v1.0.0}"
 FQDN="${DNS_NAME_APP}.${LOCATION}.azurecontainer.io"
 DB_URL="${DB_URL:-jdbc:oracle:thin:@oracle.fiap.com.br:1521:ORCL}"
 
@@ -50,7 +53,9 @@ perguntar GOOGLE_CLIENT_SECRET "Google Client Secret (cole e tecle Enter; não a
 perguntar GITHUB_CLIENT_ID "GitHub Client ID [Enter usa o do projeto]" 0
 GITHUB_CLIENT_ID="${GITHUB_CLIENT_ID:-$GITHUB_ID_PADRAO}"
 perguntar GITHUB_CLIENT_SECRET "GitHub Client Secret (cole e tecle Enter; não aparece na tela)" 1
-echo ">> Recebido: Google secret com ${#GOOGLE_CLIENT_SECRET} caracteres, GitHub secret com ${#GITHUB_CLIENT_SECRET} caracteres." 
+# Opcional: sem a chave, o ClyvoScribe usa o extrator local, sem internet
+perguntar ANTHROPIC_API_KEY "Chave do Claude para o ClyvoScribe (opcional, Enter pula; não aparece na tela)" 1
+echo ">> Recebido: Google secret com ${#GOOGLE_CLIENT_SECRET} caracteres, GitHub secret com ${#GITHUB_CLIENT_SECRET} caracteres, chave do Claude com ${#ANTHROPIC_API_KEY} caracteres."
 
 for provedor in GOOGLE GITHUB; do
   id_var="${provedor}_CLIENT_ID"; secret_var="${provedor}_CLIENT_SECRET"
@@ -106,6 +111,8 @@ properties:
           value: prod,demo
         - name: SERVER_PORT
           value: '8080'
+        - name: CLYVOSCRIBE_URL
+          value: http://localhost:8000
 EOF
 secure_env DB_URL "$DB_URL"
 secure_env DB_USER "$DB_USER"
@@ -116,6 +123,17 @@ secure_env GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
 secure_env GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
 secure_env GITHUB_CLIENT_ID "$GITHUB_CLIENT_ID"
 secure_env GITHUB_CLIENT_SECRET "$GITHUB_CLIENT_SECRET"
+cat <<EOF
+    - name: clyvoscribe
+      properties:
+        image: ${SCRIBE_IMAGE}
+        resources: {requests: {cpu: 0.5, memoryInGB: 0.5}}
+        ports: [{port: 8000}]
+        environmentVariables:
+        - name: CLYVO_IA_MODEL
+          value: claude-opus-5-5
+EOF
+secure_env ANTHROPIC_API_KEY "$ANTHROPIC_API_KEY"
 cat <<EOF
     - name: caddy
       properties:
@@ -144,4 +162,5 @@ done
 echo ">> Ainda não respondeu em HTTPS. Logs:"
 echo "   az container logs -g ${RESOURCE_GROUP} -n ${ACI_APP_NAME} --container-name app"
 echo "   az container logs -g ${RESOURCE_GROUP} -n ${ACI_APP_NAME} --container-name caddy"
+echo "   az container logs -g ${RESOURCE_GROUP} -n ${ACI_APP_NAME} --container-name clyvoscribe"
 exit 1
