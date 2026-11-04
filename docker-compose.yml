@@ -1,5 +1,5 @@
 # ============================================================================
-# DOCKER COMPOSE - CLYVO VET PLATFORM (EXECUÇÃO LOCAL)
+# DOCKER COMPOSE - AURORA PET PLATFORM (EXECUÇÃO LOCAL)
 # Aplicação Non-Root + Oracle Database Free em rede isolada com volume persistente.
 # Nenhuma senha fica no arquivo: DB_PASS, JWT_SECRET e DEMO_PASSWORD são obrigatórios.
 #   export DB_PASS="..." JWT_SECRET="$(openssl rand -base64 48)" DEMO_PASSWORD="..."

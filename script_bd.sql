@@ -1,5 +1,5 @@
 -- ============================================================================
--- SCRIPT DE BANCO DE DADOS - CLYVO VET (SPRINT DEVOPS & CLOUD COMPUTING)
+-- SCRIPT DE BANCO DE DADOS - AURORA PET (SPRINT DEVOPS & CLOUD COMPUTING)
 -- Arquivo Obrigatório: script_bd.sql
 -- Descrição: DDL estruturado com tabelas CORE, PKs, FKs, constraints e comentários.
 -- Compatível com: Oracle Database (FIAP).
