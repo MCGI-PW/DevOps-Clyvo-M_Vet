@@ -1,4 +1,4 @@
-# ☁️ Clyvo Vet - Documentação Oficial de DevOps & Cloud Computing
+# ☁️ Aurora Pet - Documentação Oficial de DevOps & Cloud Computing
 
 > Projeto acadêmico para a disciplina de **DevOps Tools & Cloud Computing** (FIAP).  
 > Solução de Gestão Veterinária desenvolvida com **Java 21 LTS**, **Spring Boot 3**, **Docker (Non-Root)**, **Azure Container Registry (ACR)**, **Azure Container Instances (ACI)** e **Banco de Dados em Nuvem**.
@@ -18,7 +18,7 @@
 ---
 
 ## 1. Descrição da Solução
-O **Clyvo Vet** é uma plataforma integrada de gestão hospitalar e clínica veterinária que conecta:
+O **Aurora Pet** é uma plataforma integrada de gestão hospitalar e clínica veterinária que conecta:
 * **Tutores**: Realizam o cadastro de seus animais, agendam consultas médicas presenciais ou por telemedicina e gerenciam o histórico clínico.
 * **Médicos Veterinários**: Controlam a fila de atendimentos, registram diagnósticos e lavram prontuários clínicos detalhados com prescrição médica.
 * **Clínicas Veterinárias**: Credenciam corpo clínico, gerenciam autorizações de acesso a dados (LGPD) e organizam transferências de consultas.
@@ -45,7 +45,7 @@ A arquitetura adota a **Opção 1 (aplicação containerizada com ACR + ACI)**, 
                                 ▼  az acr build (Dockerfile multi-stage)
             ┌───────────────────────────────────────────────────┐
             │          AZURE CONTAINER REGISTRY (ACR)           │
-            │   Imagem: clyvovet-api:v2.1.0 (Java 21 Non-Root)  │
+            │   Imagem: clyvovet-api:v2.2.0 (Java 21 Non-Root)  │
             └─────────────────────────┬─────────────────────────┘
                                       │ pull da imagem
                                       ▼
@@ -134,13 +134,13 @@ ACR_LOGIN=$(az acr show --name $ACR --query loginServer -o tsv)
 ACR_PWD=$(az acr credential show --name $ACR --query "passwords[0].value" -o tsv)
 
 # 4. Build da imagem Non-Root diretamente no ACR (na raiz deste repositório)
-az acr build --registry $ACR --image clyvovet-api:v2.1.0 --platform linux/amd64 --file Dockerfile .
+az acr build --registry $ACR --image clyvovet-api:v2.2.0 --platform linux/amd64 --file Dockerfile .
 
 # 5. Criar o container da aplicação no ACI
 az container create \
   --resource-group $RG \
   --name aci-clyvovet-app \
-  --image $ACR_LOGIN/clyvovet-api:v2.1.0 \
+  --image $ACR_LOGIN/clyvovet-api:v2.2.0 \
   --registry-login-server $ACR_LOGIN \
   --registry-username $ACR \
   --registry-password $ACR_PWD \
@@ -162,14 +162,14 @@ az container show --resource-group $RG --name aci-clyvovet-app --query "ipAddres
 
 O Google só aceita destino de login OAuth2 em **HTTPS** (exceto `localhost`). Por isso o container group ganha um segundo container, o **Caddy**, que fica na frente da aplicação. Ele emite o certificado do Let's Encrypt para o FQDN do ACI e redireciona HTTP para HTTPS. A aplicação fica só na porta interna 8080, e o Spring monta os endereços em `https://` a partir dos cabeçalhos `X-Forwarded-*` (`server.forward-headers-strategy=framework`).
 
-O grupo tem também o **ClyvoScribe AI** (serviço de IA, repositório [IoT-Clyvo-Vet_M](https://github.com/MCGI-PW/IoT-Clyvo-Vet_M)), que a aplicação chama em `localhost:8000` para resumir a teleconsulta (`CLYVOSCRIBE_URL`). Ele não fica exposto na internet.
+O grupo tem também o **AuroraScribe AI** (serviço de IA, repositório [IoT-Clyvo-Vet_M](https://github.com/MCGI-PW/IoT-Clyvo-Vet_M)), que a aplicação chama em `localhost:8000` para resumir a teleconsulta (`AURORASCRIBE_URL`). Ele não fica exposto na internet.
 
 ```text
 Internet ──443/80──► caddy (Let's Encrypt) ──localhost:8080──► app (Spring Boot) ──1521──► Oracle FIAP
                        │                                         │
                   /data no Azure Files                     localhost:8000
                   (certificado HTTPS)                            ▼
-                                                     clyvoscribe (Python, IA)
+                                                     aurorascribe (Python, IA)
 ```
 
 **Certificado persistente:** o Let's Encrypt emite no máximo **5 certificados por semana** para o mesmo endereço. Sem disco, cada recriação do grupo pedia um certificado novo e esgotava o limite (erro `HTTP 429 rateLimited` no log do Caddy). Por isso o script cria a conta de armazenamento `stclyvovet23613` com o compartilhamento `caddy-data` e monta em `/data` no Caddy: o certificado sobrevive a reinícios e a novos deploys.
@@ -177,7 +177,7 @@ Internet ──443/80──► caddy (Let's Encrypt) ──localhost:8080──�
 ```bash
 ./scripts/deploy_https_oauth.sh   # pede as senhas e as chaves OAuth sem mostrá-las na tela
 # Aplicação: https://<fqdn>/   ·   Swagger: https://<fqdn>/swagger-ui.html
-# Logs:      az container logs -g $RG -n aci-clyvovet-app --container-name app   (ou caddy, ou clyvoscribe)
+# Logs:      az container logs -g $RG -n aci-clyvovet-app --container-name app   (ou caddy, ou aurorascribe)
 ```
 
 URLs de retorno a cadastrar nos provedores:

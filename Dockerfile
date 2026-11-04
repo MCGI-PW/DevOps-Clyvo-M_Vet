@@ -1,5 +1,5 @@
 # ============================================================================
-# DOCKERFILE - CLYVO VETERINARY API (JAVA 21 LTS STANDALONE)
+# DOCKERFILE - AURORA PET API (JAVA 21 LTS STANDALONE)
 # Requisito 8.2: Execução estritamente NON-ROOT (sem privilégios administrativos)
 # Padrão: Multi-stage Build otimizado para produção e CI/CD
 # ============================================================================
